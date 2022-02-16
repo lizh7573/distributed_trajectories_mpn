@@ -4,23 +4,10 @@ Processing Ring Datasets
 """
 
 
-from pyspark.sql import SparkSession
 import pyspark.sql.functions as F
 from pyspark.sql import Window
-from pyspark.sql.types import LongType, FloatType, ArrayType
+from pyspark.sql.types import StringType, FloatType, ArrayType
 from distributed_trajectories_mpn.constants import ring_fraction
-
-firstRing_file = 'data/ring/voronoiUlaStoOreb_bbox_queen1.txt'
-secondRing_file = 'data/ring/voronoiUlaStoOreb_bbox_queen2.txt'
-thirdRing_file = 'data/ring/voronoiUlaStoOreb_bbox_queen3.txt'
-
-
-
-spark = SparkSession.builder\
-    .enableHiveSupport()\
-    .appName('distributed_trajectories_mpn')\
-    .master('local[*]')\
-    .getOrCreate()
 
 
 
@@ -76,11 +63,11 @@ class Ring_adjNum:
     def probability(self):    
         self.df = self.df.withColumn('voronoi_id', F.split(self.df['1st'], ' ').getItem(0))\
                     .withColumn('selfProp', F.lit(ring_fraction[0]))\
-                    .withColumn('1st_adjNum', F.split(self.df['1st'], ' ').getItem(1).cast(LongType()))\
+                    .withColumn('1st_adjNum', F.split(self.df['1st'], ' ').getItem(1).cast(FloatType()))\
                     .withColumn('1st_adjProp', ring_fraction[1]/F.col('1st_adjNum'))\
-                    .withColumn('2nd_adjNum', F.split(self.df['2nd'], ' ').getItem(1).cast(LongType()))\
+                    .withColumn('2nd_adjNum', F.split(self.df['2nd'], ' ').getItem(1).cast(FloatType()))\
                     .withColumn('2nd_adjProp', ring_fraction[2]/F.col('2nd_adjNum'))\
-                    .withColumn('3rd_adjNum', F.split(self.df['3rd'], ' ').getItem(1).cast(LongType()))\
+                    .withColumn('3rd_adjNum', F.split(self.df['3rd'], ' ').getItem(1).cast(FloatType()))\
                     .withColumn('3rd_adjProp', ring_fraction[3]/F.col('3rd_adjNum'))\
                     .drop('1st', '2nd', '3rd')
         return self.df
@@ -159,7 +146,7 @@ class Ring:
         self.df = self.df\
            .withColumn('neighbors', F.concat('voronoi_id', F.lit(' '), '1st_adj'))\
            .withColumn('props', F.concat('selfProp', '1st_adjProp'))\
-           .withColumn('neighbors', F.split(F.col('neighbors'), ' ').cast(ArrayType(LongType())))\
+           .withColumn('neighbors', F.split(F.col('neighbors'), ' ').cast(ArrayType(StringType())))\
            .withColumn('props', F.split(F.col('props'), ' ').cast(ArrayType(FloatType())))\
            .withColumn('props', F.expr("transform(props, x -> x / 0.74)"))\
            .drop('row', 'selfProp', '1st_adjProp', '1st_adj')
@@ -169,7 +156,7 @@ class Ring:
         self.df = self.df\
            .withColumn('neighbors', F.concat('voronoi_id', F.lit(' '), '1st_adj', F.lit(' '), '2nd_adj'))\
            .withColumn('props', F.concat('selfProp', '1st_adjProp', '2nd_adjProp'))\
-           .withColumn('neighbors', F.split(F.col('neighbors'), ' ').cast(ArrayType(LongType())))\
+           .withColumn('neighbors', F.split(F.col('neighbors'), ' ').cast(ArrayType(StringType())))\
            .withColumn('props', F.split(F.col('props'), ' ').cast(ArrayType(FloatType())))\
            .withColumn('props', F.expr("transform(props, x -> x / 0.89)"))\
            .drop('row', 'selfProp', '1st_adjProp', '2nd_adjProp', '1st_adj', '2nd_adj')
@@ -179,7 +166,7 @@ class Ring:
         self.df = self.df\
            .withColumn('neighbors', F.concat('voronoi_id', F.lit(' '), '1st_adj', F.lit(' '), '2nd_adj', F.lit(' '), '3rd_adj'))\
            .withColumn('props', F.concat('selfProp', '1st_adjProp', '2nd_adjProp', '3rd_adjProp'))\
-           .withColumn('neighbors', F.split(F.col('neighbors'), ' ').cast(ArrayType(LongType())))\
+           .withColumn('neighbors', F.split(F.col('neighbors'), ' ').cast(ArrayType(StringType())))\
            .withColumn('props', F.split(F.col('props'), ' ').cast(ArrayType(FloatType())))\
            .withColumn('props', F.expr("transform(props, x -> x / 0.95)"))\
            .drop('row', 'selfProp', '1st_adjProp', '2nd_adjProp', '3rd_adjProp', '1st_adj', '2nd_adj', '3rd_adj')

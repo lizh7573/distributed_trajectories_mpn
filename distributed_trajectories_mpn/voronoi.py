@@ -4,7 +4,8 @@ Processing Voronoi Dataset
 """
 
 import pyspark.sql.functions as F
-from pyspark.sql.types import DoubleType
+from pyspark.sql import Window
+from pyspark.sql.types import StringType
 
 
 
@@ -22,7 +23,9 @@ class Voronoi:
     def process(self):
         self.df = self.df\
             .withColumnRenamed('locid', 'voronoi_id')\
+            .withColumn('voronoi_id', F.col('voronoi_id').cast(StringType()))\
             .withColumnRenamed('xtr10', 'coord_x')\
             .withColumnRenamed('ytr10', 'coord_y')\
-            .select(['voronoi_id', 'coord_x', 'coord_y'])
+            .withColumn('simplified_id', F.row_number().over(Window().orderBy(F.lit('A'))))\
+            .select('voronoi_id', 'coord_x', 'coord_y', 'simplified_id')
         return self.df

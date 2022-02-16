@@ -12,5 +12,5 @@ setup(
     setup_requires=['pytest_runner'],
     tests_require=['pytest'],
     test_suite='tests',
-    url='https://github.com/lizh7573/distributed_trajectories_mpn',
+    url='https://github.com/lizh7573/distributed_trajectories_mpn.git',
 )
