@@ -61,3 +61,172 @@ def plot_dense(matrix, fname, title, dirname):
     plt.ylabel("polygon", fontsize = 27)
     plt.title(title, fontsize = 30)
     plt.savefig(os.path.join(dirname, fname))
+
+
+
+def vectorize(x):
+
+    col = x.col
+    val = x.val
+    ml_SparseVector = Vectors.sparse(4069+1, col, val)
+    np_vector = ml_SparseVector.toArray().tolist()
+
+    return (ml_SparseVector, np_vector) 
+
+
+
+
+def stationary(n, vector, matrix):
+
+    current_sv = vector.first()['ml_SparseVector']
+    current_v = vector.first()['np_vector']
+    res = np.array([current_v])
+
+    for j in range(n-1):
+
+        next_v = (current_sv.dot(matrix)).tolist()
+        res = np.append( res, np.array([next_v]), axis = 0 )
+        d = {x: next_v[x] for x in np.nonzero(next_v)[0]}
+        next_sv = Vectors.sparse(len(next_v), d)
+        current_sv = next_sv
+
+    stationary_vector = pd.DataFrame(res)
+
+    return stationary_vector
+
+
+
+def vectorConverge(spark, vector):
+
+    last_vector = vector.iloc[-1:]
+    # drop_zeros = last_vector.loc[:, (last_vector != 0).any(axis = 0)]
+    transpose = last_vector.melt()
+
+    next_vector = spark.createDataFrame(transpose)\
+                       .agg(F.collect_list('variable').alias('col'),
+                            F.collect_list('value').alias('val'))
+
+    return next_vector
+
+
+
+def observe_convergence(vector, fname, title, dirname):
+    
+    dfStationaryDist = vector
+    dfStationaryDist.plot(legend = None)
+
+    plt.xlabel("iterated times", fontsize = 18)
+    plt.ylabel("proportion", fontsize = 18)
+    plt.title(title, fontsize = 20)
+    plt.gcf().set_size_inches(16, 12)
+    plt.savefig(os.path.join(dirname, fname))
+
+
+
+def plot_trend(vector, fname, title, dirname):
+
+    labels = list(vector.columns)
+    initial = list(vector.iloc[0])
+    middle = list(vector.iloc[1])
+    end = list(vector.iloc[2])
+
+    X = np.arange(len(vector.columns))
+    width = 0.2
+
+    plt.figure(figsize = (16, 12))
+    plt.bar(X - 0.2, initial, width, color = 'dodgerblue', label = 'initial')
+    plt.bar(X, middle, width, color = 'darkorange', label = 'middle')
+    plt.bar(X + 0.2, end, width, color = 'forestgreen', label = 'end')
+    # plt.xticks(X, labels)
+    plt.xlabel("polygon", fontsize = 18)
+    plt.ylabel("proportion", fontsize = 18)
+    plt.legend(['initial', 'middle', 'end'], fontsize = 18)
+    
+    plt.title(title, fontsize = 20)
+    plt.savefig(os.path.join(dirname, fname))
+
+
+
+
+def sim_vectorize(x):
+
+    user_id = x.user_id
+    simulated_traj = x.simulated_traj
+    col = x.col
+    val = x.val
+    ml_SparseVector = Vectors.sparse(4069+1, col, val)
+    sim_vector = ml_SparseVector.toArray().tolist()
+    i = x.i
+
+    return (user_id, simulated_traj, sim_vector, i)
+
+
+
+def randomize(current_row):
+    r = np.random.uniform(0.0, 1.0)
+    cum = np.cumsum(current_row)
+    m = (np.where(cum < r))[0]
+    nextState = m[len(m)-1]+1
+    return nextState
+
+
+
+
+def simulate(vector, matrix1, m):
+
+    df = vector.toPandas()
+    P1 = matrix1
+    # P2 = matrix2
+
+    for i in df.index:
+        currentState = df['voronoi_id'][i]
+        simulated_traj = [currentState.item()]
+
+        for x in range(m):
+            currentRow = np.ma.masked_values((P1[currentState]), 0.0)
+            nextState = randomize(currentRow)
+            simulated_traj = simulated_traj + [nextState.item()]
+            currentState = nextState
+        
+        df.at[i, 'simulated_traj'] = str(simulated_traj)
+
+        # for y in range(n):
+        #     currentRow = np.ma.masked_values((P2[currentState]), 0.0)
+        #     nextState = randomize(currentRow)
+        #     simulated_traj = simulated_traj + [nextState.item()]
+        #     currentState = nextState
+            
+        # df.at[i, 'simulated_traj'] = str(simulated_traj)  
+
+    return df
+
+
+
+def plot_sim_result(vector, fname, title, dirname):
+
+    last_vector = vector.iloc[-1:]
+
+    plt.figure(figsize = (16, 12))
+    plt.bar(x = list(last_vector.columns), height = list(last_vector.iloc[0]))
+    plt.xlabel("polygon", fontsize = 18)
+    plt.ylabel("proportion", fontsize = 18)
+    # plt.xticks(range(0, 114+1, 10))
+    plt.title(title, fontsize = 20)
+    plt.savefig(os.path.join(dirname, fname))
+
+
+
+def rand_state(data, n):
+
+    df = data
+
+    for i in range(n-1):
+        df = df.union(data)
+
+    window = Window.partitionBy(['id']).orderBy(F.lit('A'))
+
+    df = df.withColumn('i', F.row_number().over(window))\
+           .withColumn('simulated_traj', F.round(F.rand(seed=0)*4069, 0).cast(IntegerType()))\
+           .withColumnRenamed('id', 'user_id')
+
+    return df

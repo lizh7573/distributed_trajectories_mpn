@@ -93,6 +93,7 @@ class TM:
         self.sim_tm_states_vector()
         self.tm_states_update()
         self.states_collect()
+        self.coords_simplify()
         self.states_normalize()
         return self.df
 

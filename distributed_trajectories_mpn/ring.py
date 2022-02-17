@@ -21,7 +21,7 @@ class Preprocess:
     def read(self):
         w = Window().orderBy(F.lit('A'))
         self.df = self.df.withColumn('row', F.row_number().over(w))\
-                      .filter(F.col('row') != 1).drop('row')
+                         .filter(F.col('row') != 1).drop('row')
         return self.df
 
     def seperate_adjNum(self):
